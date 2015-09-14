@@ -3,7 +3,7 @@
     "value": "West US"
   },
   "vnetName": {
-      "value": "VNet 1"
+      "value": "VNet 2"
   },
   "addressPrefix": {
       "value": "10.0.0.0/16"

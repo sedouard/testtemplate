@@ -9,8 +9,7 @@
         "West US",
         "Central US",
         "West Europe",
-        "East Asia",
-        "South East Asia"
+        "East Asia"
       ],
       "metadata": {
         "description": "Deployment location"

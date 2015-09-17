@@ -8,7 +8,8 @@
         "East US",
         "West US",
         "Central US",
-        "West Europe"
+        "West Europe",
+	"North Europe"
       ],
       "metadata": {
         "description": "Deployment location"

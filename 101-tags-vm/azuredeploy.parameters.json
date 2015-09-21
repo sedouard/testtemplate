@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "newStorageAccountName": {
-      "value": "storageaccount1"
+      "value": "testazsto4"
     },
     "adminUsername": {
       "value": "test"
@@ -12,7 +12,7 @@
       "value": "password"
     },
     "dnsNameForPublicIP": {
-      "value": "mydnsname"
+      "value": "testazdns4"
     },
     "departmentName": {
       "value": "myDepartment"

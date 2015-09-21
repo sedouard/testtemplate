@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "newStorageAccountName": {
-      "value": "uniqueStorageAccount"
+      "value": "testazsto3"
     },
     "adminUsername": {
       "value": "userName"
@@ -12,7 +12,7 @@
       "value": "password"
     },
     "dnsNameForPublicIP": {
-      "value": "uniqueDNS"
+      "value": "testazdns1"
     },
     "ubuntuOSVersion": {
       "value": "14.04.2-LTS"

@@ -1,0 +1,21 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-05-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "newStorageAccountName": {
+      "value": "citeststoreacc4"
+    },
+    "adminUsername": {
+      "value": "testci"
+    },
+    "adminPassword": {
+      "value": "Cortana123"
+    },
+    "dnsNameForPublicIP": {
+      "value": "citestdns4"
+    },
+    "location": {
+      "value": "West US"
+    }
+  }
+}

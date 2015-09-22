@@ -3,16 +3,16 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "newStorageAccountName": {
-      "value": "uniqueStorageAccount"
+      "value": "testazstoka3"
     },
     "adminUsername": {
-      "value": "userName"
+      "value": "okdude"
     },
     "adminPassword": {
-      "value": "password"
+      "value": "Cortana123"
     },
     "dnsNameForPublicIP": {
-      "value": "uniqueDNS"
+      "value": "testazdnska3"
     },
     "ubuntuOSVersion": {
       "value": "14.04.2-LTS"

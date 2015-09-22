@@ -3,16 +3,16 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "newStorageAccountName": {
-      "value": "storageaccount1"
+      "value": "testazstoka4"
     },
     "adminUsername": {
-      "value": "test"
+      "value": "okdude"
     },
     "adminPassword": {
-      "value": "password"
+      "value": "Cortama131"
     },
     "dnsNameForPublicIP": {
-      "value": "mydnsname"
+      "value": "testazdnska4"
     },
     "departmentName": {
       "value": "myDepartment"

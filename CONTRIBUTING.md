@@ -9,9 +9,8 @@ This is a repo that contains all the currently available Azure Resource Manager 
 
 ## Adding Your Template
 
-### Git
+### GitHub Workflow
 
-GitHub Workflow
 We're following basic GitHub Flow. If you have ever contributed to an open source project on GitHub, you probably know it already - if you have no idea what we're talking about, check out [GitHub's official guide](https://guides.github.com/introduction/flow/). Here's a quick summary:
 
  * Fork the repository and clone to your local machine

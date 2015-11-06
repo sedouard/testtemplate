@@ -3,7 +3,8 @@ var assert = require('assert'),
     path = require('path'),
     RSVP = require('rsvp'),
     unirest = require('unirest'),
-    skeemas = require('skeemas');
+    skeemas = require('skeemas'),
+    git = require('git-utils');
 
 // Tries to parse a json string and asserts with a friendly
 // message if somerthign
@@ -82,11 +83,12 @@ function getDirectories(srcpath) {
   });
 }
 
-function generateTests() {
+function generateTests(modifiedPaths) {
   var tests = [];
   var directories = getDirectories('./');
   
   directories.forEach(function (dirName) {
+
 
     // exceptions
     if (dirName === '.git' ||
@@ -97,9 +99,19 @@ function generateTests() {
     if (fs.existsSync(path.join(dirName, '.ci_skip'))) {
       return;
     }
+    var templatePath = path.join(dirName, 'azuredeploy.json'),
+        paramsPath = path.join(dirName, 'azuredeploy.parameters.json'),
+        metadataPath = path.join(dirName, 'metadata.json');
+
+    // if we are only validating modified templates
+    // only add test if this directory template has been modified
+    if (modifiedPaths && (!modifiedPaths[templatePath] && !modifiedPaths[paramsPath]
+      && modifiedPaths[metadataPath]) === undefined) {
+      return;
+    }
 
     tests.push({
-      args: [path.join(dirName, 'azuredeploy.json'), path.join(dirName, 'azuredeploy.parameters.json'), path.join(dirName, 'metadata.json') ],
+      args: [templatePath, paramsPath, metadataPath],
       expected: true
     });
   });
@@ -111,7 +123,18 @@ describe('Template', function() {
 
   this.timeout(20000);
 
-  generateTests().forEach(function(test) {
+  var modifiedPaths;
+
+  if (process.env.VALIDATE_MODIFIED_ONLY) {
+    var repo = git.open('./');
+    // we automatically reset to the beginning of the commit range
+    // so this includes all file paths that have changed for the CI run
+    modifiedPaths = repo.getStatus();
+    console.log(modifiedPaths);
+  }
+
+  generateTests(modifiedPaths).forEach(function(test) {
+
     it(test.args[0] + ' & ' + test.args[1] + ' should be valid', function() {
       // validate template files are in correct place
       test.args.forEach(function (path) {

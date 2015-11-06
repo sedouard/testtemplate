@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "newStorageAccountName": {
-      "value": "testazstoka3"
+      "value": "#####"
     },
     "adminUsername": {
       "value": "okdude"
@@ -12,7 +12,7 @@
       "value": "Cortana123"
     },
     "dnsNameForPublicIP": {
-      "value": "testazdnska3"
+      "value": "#####"
     },
     "ubuntuOSVersion": {
       "value": "14.04.2-LTS"

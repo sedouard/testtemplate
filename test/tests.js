@@ -34,11 +34,11 @@ function validateMetadata(metadataPath) {
   var result = skeemas.validate(metadata,
   {
     properties: {
-      itemDisplayName: { type: 'string' },
-      description: { type: 'string'},
-      summary: { type: 'string'},
-      githubUserName:  { type: 'string'},
-      dateUpdated:  { type: 'string', required: true}
+      itemDisplayName: { type: 'string', required: true, minLength: 10 },
+      description: { type: 'string', required: true, minLength: 10},
+      summary: { type: 'string', required: true, minLength: 10},
+      githubUserName:  { type: 'string', required: true, minLength: 2},
+      dateUpdated:  { type: 'string', required: true, minLength: 10}
     },
     additionalProperties: false
   });
@@ -47,6 +47,10 @@ function validateMetadata(metadataPath) {
     messages += ( metadataPath + ' - ' + error.context + ':' + error.message + '\n');
   });
   assert(result.valid, messages);
+
+  // validate date
+  var date = new Date(metadata.dateUpdated);
+  assert(!isNaN(date.getTime()), metadataPath + ' - dateUpdated field should be a valid date in the format YYYY-MM-DD');
 }
 
 // Calls a remote url which will validate the template and parameters

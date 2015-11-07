@@ -7,7 +7,7 @@ var assert = require('assert'),
     git = require('git-utils');
 
 // Tries to parse a json string and asserts with a friendly
-// message if somerthign
+// message if something is wrong
 function safeParse (fileName, jsonStringData) {
   var object;
 

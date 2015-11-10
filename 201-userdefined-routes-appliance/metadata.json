@@ -2,6 +2,6 @@
   "itemDisplayName": "User defined routes and Appliance",
   "description": "This template deploys a Virtual Network, VMs in respective subnets and routes to direct traffic to the appliance",
   "summary": "Service Chaining with User defined Routes (UDR)",
-  "githubUsername": "NarayanAnnamalai",
-  "dateUpdated": "2015-09-22"
+  "githubUserName": "NarayanAnnamalai",
+  "dateUpdated": "2015-05-28"
 }

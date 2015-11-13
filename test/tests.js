@@ -7,7 +7,7 @@ var assert = require('assert'),
     git = require('git-utils');
 
 // Tries to parse a json string and asserts with a friendly
-// message if somerthign
+// message if something is wrong
 function safeParse (fileName, jsonStringData) {
   var object;
 
@@ -53,6 +53,20 @@ function validateMetadata(metadataPath) {
   assert(!isNaN(date.getTime()), metadataPath + ' - dateUpdated field should be a valid date in the format YYYY-MM-DD');
 }
 
+// azure cli apparently does not check for this
+function validateTempalteParameters(templatePath, templateObject) {
+
+  assert.ok(templateObject.parameters, 'Expected a \'.parameters\' field within the deployment template');
+  for (var k in templateObject.parameters) {
+    if(typeof k === 'string') {
+      assert.ok(templateObject.parameters[k].metadata, 
+        templatePath + ' - Template object .parameters.' + k + ' is missing its metadata field');
+      assert.ok(templateObject.parameters[k].metadata.description, 
+        templatePath + ' - Template object .paramters.' + k + '.description is missing');
+    }
+  }
+
+}
 // Calls a remote url which will validate the template and parameters
 function validateTemplate(templatePath, parametersPath, validationUrl) {
   var templateData = fs.readFileSync(templatePath, {encoding: 'utf-8'}),
@@ -65,6 +79,9 @@ function validateTemplate(templatePath, parametersPath, validationUrl) {
     template: safeParse(templatePath, templateData),
     parameters: safeParse(templatePath, parameterData)
   }
+
+  // validate the template paramters, particularly the description field
+  validateTempalteParameters(templatePath, requestBody.template);
 
   return new RSVP.Promise(function(resolve, reject) {
     unirest.post(process.env.VALIDATION_URL)
@@ -90,7 +107,20 @@ function getDirectories(srcpath) {
 function generateTests(modifiedPaths) {
   var tests = [];
   var directories = getDirectories('./');
-  
+  console.log(modifiedPaths);
+  var modifiedDirs = {};
+
+  for (var k in modifiedPaths) {
+    if (typeof k === 'string') {
+      // don't include the top level dir
+      if (path.dirname(k) === '.') {
+        continue;
+      }
+      modifiedDirs[path.dirname(k)] = true;
+    }
+  }
+  console.log('modified dirs:');
+  console.log(modifiedDirs);
   directories.forEach(function (dirName) {
 
 
@@ -109,8 +139,7 @@ function generateTests(modifiedPaths) {
 
     // if we are only validating modified templates
     // only add test if this directory template has been modified
-    if (modifiedPaths && (!modifiedPaths[templatePath] && !modifiedPaths[paramsPath]
-      && modifiedPaths[metadataPath]) === undefined) {
+    if (modifiedPaths && !modifiedDirs[dirName]) {
       return;
     }
 
@@ -134,7 +163,6 @@ describe('Template', function() {
     // we automatically reset to the beginning of the commit range
     // so this includes all file paths that have changed for the CI run
     modifiedPaths = repo.getStatus();
-    console.log(modifiedPaths);
   }
 
   generateTests(modifiedPaths).forEach(function(test) {

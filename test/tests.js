@@ -4,7 +4,8 @@ var assert = require('assert'),
     RSVP = require('rsvp'),
     unirest = require('unirest'),
     skeemas = require('skeemas'),
-    git = require('git-utils');
+    git = require('git-utils'),
+    debug = require('debug')('validator');
 
 // Tries to parse a json string and asserts with a friendly
 // message if something is wrong
@@ -54,7 +55,7 @@ function validateMetadata(metadataPath) {
 }
 
 // azure cli apparently does not check for this
-function validateTempalteParameters(templatePath, templateObject) {
+function validateTemplateParameters(templatePath, templateObject) {
 
   assert.ok(templateObject.parameters, 'Expected a \'.parameters\' field within the deployment template');
   for (var k in templateObject.parameters) {
@@ -67,8 +68,8 @@ function validateTempalteParameters(templatePath, templateObject) {
   }
 
 }
-// Calls a remote url which will validate the template and parameters
-function validateTemplate(templatePath, parametersPath, validationUrl) {
+
+function prepTemplate(templatePath, parametersPath) {
   var templateData = fs.readFileSync(templatePath, {encoding: 'utf-8'}),
       parameterData = fs.readFileSync(parametersPath, {encoding: 'utf-8'});
 
@@ -80,11 +81,19 @@ function validateTemplate(templatePath, parametersPath, validationUrl) {
     parameters: safeParse(templatePath, parameterData)
   }
 
+  return requestBody;
+}
+
+// Calls a remote url which will validate the template and parameters
+function validateTemplate(templatePath, parametersPath) {
+  
+  var requestBody = prepTemplate(templatePath, parametersPath);
+
   // validate the template paramters, particularly the description field
-  validateTempalteParameters(templatePath, requestBody.template);
+  validateTemplateParameters(templatePath, requestBody.template);
 
   return new RSVP.Promise(function(resolve, reject) {
-    unirest.post(process.env.VALIDATION_URL)
+    unirest.post(process.env.VALIDATION_HOST + '/validate')
     .type('json')
     .send(JSON.stringify(requestBody))
     .end(function (response) {
@@ -98,6 +107,44 @@ function validateTemplate(templatePath, parametersPath, validationUrl) {
   });
 }
 
+// this is required to keep travis from timing out
+// due to lack of console output
+function timedOutput(onOff, intervalObject) {
+  if (onOff) {
+    setTimeout(function () {
+      console.log('...');
+    }, 30 * 1000)
+  } else {
+    clearTimeout(intervalObject);
+  }
+}
+
+// Calls a remote url which will deploy the template
+function deployTemplate(templatePath, parametersPath) {
+  var requestBody = prepTemplate(templatePath, parametersPath);
+
+  // validate the template paramters, particularly the description field
+  validateTemplateParameters(templatePath, requestBody.template);
+
+  timedOutput(true);
+
+  return new RSVP.Promise(function(resolve, reject) {
+    unirest.post(process.env.VALIDATION_HOST + '/deploy')
+    .type('json')
+    .timeout(3600 * 1000) // template deploy can take some time
+    .send(JSON.stringify(requestBody))
+    .end(function (response) {
+      timedOutput(false);
+      if (response.status !== 200) {
+        return reject(response.body);
+      }
+
+      return resolve(response.body);
+    });
+  });
+}
+
+
 function getDirectories(srcpath) {
   return fs.readdirSync(srcpath).filter(function(file) {
     return fs.statSync(path.join(srcpath, file)).isDirectory();
@@ -107,7 +154,7 @@ function getDirectories(srcpath) {
 function generateTests(modifiedPaths) {
   var tests = [];
   var directories = getDirectories('./');
-  console.log(modifiedPaths);
+  debug(modifiedPaths);
   var modifiedDirs = {};
 
   for (var k in modifiedPaths) {
@@ -119,8 +166,8 @@ function generateTests(modifiedPaths) {
       modifiedDirs[path.dirname(k)] = true;
     }
   }
-  console.log('modified dirs:');
-  console.log(modifiedDirs);
+  debug('modified dirs:');
+  debug(modifiedDirs);
   directories.forEach(function (dirName) {
 
 
@@ -154,7 +201,7 @@ function generateTests(modifiedPaths) {
 
 describe('Template', function() {
 
-  this.timeout(20000);
+  this.timeout(3600 * 1000);
 
   var modifiedPaths;
 
@@ -172,12 +219,13 @@ describe('Template', function() {
       test.args.forEach(function (path) {
         var res = ensureExists.apply(null, [path]);
       });
-      
+
       validateMetadata.apply(null, [test.args[2]]);
 
       return validateTemplate.apply(null, test.args)
       .then(function (result) {
-        assert.equal(true, true);
+        debug('template validation sucessful, deploying template...');
+        return deployTemplate.apply(null, test.args);
       })
       .catch(function (err) {
         throw err;

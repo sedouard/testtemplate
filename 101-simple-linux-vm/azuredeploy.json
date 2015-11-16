@@ -5,6 +5,7 @@
     "newStorageAccountName": {
       "type": "string",
       "metadata": {
+        "description": "Unique name for storage account"
       }
     },
     "adminUsername": {

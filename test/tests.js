@@ -128,7 +128,7 @@ function deployTemplate(templatePath, parametersPath) {
   validateTemplateParameters(templatePath, requestBody.template);
 
   var intervalObj = timedOutput(true);
-  console.log('making request');
+  debug('making deploy request');
 
   return new RSVP.Promise(function(resolve, reject) {
     unirest.post(process.env.VALIDATION_HOST + '/deploy')
@@ -260,7 +260,7 @@ describe('Template', function() {
   testGroups = groupTests(modifiedPaths);
 
   testGroups.forEach(function (tests) {
-    parallel(tests.length + ' Parallel Template Validations', function () {
+    parallel('Running ' + tests.length + ' Parallel Template Validation(s)...', function () {
       tests.forEach(function(test) {
         it(test.args[0] + ' & ' + test.args[1] + ' should be valid', function() {
           // validate template files are in correct place
@@ -285,7 +285,8 @@ describe('Template', function() {
             errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1] + '\n';
             errorString += 'azure group deployment create --resource-group (your_group_name) ';
             errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1];
-            assert.fail(errorString + ' ' + err);
+            console.error(err);
+            assert.fail(err);
           });
         });
       });

@@ -5,7 +5,8 @@ var assert = require('assert'),
     unirest = require('unirest'),
     skeemas = require('skeemas'),
     git = require('git-utils'),
-    debug = require('debug')('validator');
+    debug = require('debug')('validator'),
+    parallel = require('mocha.parallel');
 
 // Tries to parse a json string and asserts with a friendly
 // message if something is wrong
@@ -111,7 +112,7 @@ function validateTemplate(templatePath, parametersPath) {
 // due to lack of console output
 function timedOutput(onOff, intervalObject) {
   if (onOff) {
-    setTimeout(function () {
+    return setInterval(function () {
       console.log('...');
     }, 30 * 1000)
   } else {
@@ -126,7 +127,8 @@ function deployTemplate(templatePath, parametersPath) {
   // validate the template paramters, particularly the description field
   validateTemplateParameters(templatePath, requestBody.template);
 
-  timedOutput(true);
+  var intervalObj = timedOutput(true);
+  console.log('making request');
 
   return new RSVP.Promise(function(resolve, reject) {
     unirest.post(process.env.VALIDATION_HOST + '/deploy')
@@ -134,12 +136,23 @@ function deployTemplate(templatePath, parametersPath) {
     .timeout(3600 * 1000) // template deploy can take some time
     .send(JSON.stringify(requestBody))
     .end(function (response) {
-      timedOutput(false);
-      if (response.status !== 200) {
+      timedOutput(false, intervalObj);
+      debug(response.status);
+      debug(response.body);
+
+      // 202 is the long poll response
+      // anything else is really bad
+      if (response.status !== 202) {
         return reject(response.body);
       }
-
-      return resolve(response.body);
+      
+      if(response.body.result === 'Deployment Successful') {
+        return resolve(response.body);
+      }
+      else {
+        return reject(response.body);
+      }
+      
     });
   });
 }
@@ -151,6 +164,8 @@ function getDirectories(srcpath) {
   });
 }
 
+// Generates the mocha tests based on directories in
+// the existing repo.
 function generateTests(modifiedPaths) {
   var tests = [];
   var directories = getDirectories('./');
@@ -196,7 +211,37 @@ function generateTests(modifiedPaths) {
     });
   });
 
+  debug('created tests:');
+  debug(tests);
+
   return tests;
+}
+
+// Group tests in chunks defined by an environment variable
+// or by the default value
+function groupTests (modifiedPaths) {
+  // we probably shouldn't deploy a ton of templates at once...
+  var tests = generateTests(modifiedPaths),
+      testGroups = [],
+      groupIndex = 0,
+      counter = 0,
+      groupSize = process.env.PARALLEL_DEPLOYMENT_NUMBER || 2;
+  
+  tests.forEach(function(test) {
+
+    if (!testGroups[groupIndex]) {
+      testGroups[groupIndex] = [];
+    }
+
+    testGroups[groupIndex].push(test);
+    counter += 1;
+
+    if (counter % groupSize === 0) {
+      groupIndex += 1;
+    }
+  });
+
+  return testGroups;
 }
 
 describe('Template', function() {
@@ -212,23 +257,37 @@ describe('Template', function() {
     modifiedPaths = repo.getStatus();
   }
 
-  generateTests(modifiedPaths).forEach(function(test) {
+  testGroups = groupTests(modifiedPaths);
 
-    it(test.args[0] + ' & ' + test.args[1] + ' should be valid', function() {
-      // validate template files are in correct place
-      test.args.forEach(function (path) {
-        var res = ensureExists.apply(null, [path]);
-      });
+  testGroups.forEach(function (tests) {
+    parallel(tests.length + ' Parallel Template Validations', function () {
+      tests.forEach(function(test) {
+        it(test.args[0] + ' & ' + test.args[1] + ' should be valid', function() {
+          // validate template files are in correct place
+          test.args.forEach(function (path) {
+            var res = ensureExists.apply(null, [path]);
+          });
 
-      validateMetadata.apply(null, [test.args[2]]);
+          validateMetadata.apply(null, [test.args[2]]);
 
-      return validateTemplate.apply(null, test.args)
-      .then(function (result) {
-        debug('template validation sucessful, deploying template...');
-        return deployTemplate.apply(null, test.args);
-      })
-      .catch(function (err) {
-        throw err;
+          return validateTemplate.apply(null, test.args)
+          .then(function (result) {
+            debug('template validation sucessful, deploying template...');
+            return deployTemplate.apply(null, test.args);
+          })
+          .then(function () {
+            // success
+            return assert(true);
+          })
+          .catch(function (err) {
+            var errorString = 'Template Validiation Failed. Try deploying your template:\n';
+            errorString += 'azure group template validate --resource-group (your_group_name)\n';
+            errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1] + '\n';
+            errorString += 'azure group deployment create --resource-group (your_group_name) ';
+            errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1];
+            assert.fail(errorString + ' ' + err);
+          });
+        });
       });
     });
   });

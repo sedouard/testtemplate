@@ -5,7 +5,7 @@ grunt.initConfig({
     mochacli: {
         options: {
             reporter: 'spec',
-            bail: true
+            bail: false
         },
         all: ['test/*.js']
     }

@@ -280,13 +280,12 @@ describe('Template', function() {
             return assert(true);
           })
           .catch(function (err) {
-            var errorString = 'Template Validiation Failed. Try deploying your template:\n';
-            errorString += 'azure group template validate --resource-group (your_group_name)\n';
+            var errorString = 'Template Validiation Failed. Try deploying your template with the commands:\n';
+            errorString += 'azure group template validate --resource-group (your_group_name) ';
             errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1] + '\n';
             errorString += 'azure group deployment create --resource-group (your_group_name) ';
             errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1];
-            console.error(err);
-            assert.fail(err);
+            assert(false, errorString + ' \n\nServer Error:' + JSON.stringify(err));
           });
         });
       });

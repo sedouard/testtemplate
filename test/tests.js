@@ -72,9 +72,25 @@ function validateTemplateParameters(templatePath, templateObject) {
   for (var k in templateObject.parameters) {
     if(typeof k === 'string') {
       assert.ok(templateObject.parameters[k].metadata, 
-        templatePath + ' - Template object .parameters.' + k + ' is missing its metadata field');
+        templatePath + ' -  Parameter \"' + k + '\" is missing its metadata field');
       assert.ok(templateObject.parameters[k].metadata.description, 
-        templatePath + ' - Template object .paramters.' + k + '.description is missing');
+        templatePath + ' - Parameter \"' + k + '\" is missing its description field');
+    }
+  }
+}
+
+function validateParamtersFile(parametersPath) {
+
+  var parametersData = fs.readFileSync(parametersPath, {encoding: 'utf-8'});
+  metadataData = parametersData.trim();
+
+  var parametersObject = safeParse(parametersPath, metadataData);
+
+  assert.ok(parametersObject.parameters, parametersPath + ' - Expected a \'.parameters\' field within the parameters file');
+  for (var k in parametersObject.parameters) {
+    if(typeof k === 'string') {
+      assert.ok(parametersObject.parameters[k].value, 
+        parametersPath + ' -  Parameter \"' + k + '\" is missing its value field');
     }
   }
 }
@@ -279,6 +295,7 @@ describe('Template', function() {
           });
 
           validateMetadata.apply(null, [test.args[2]]);
+          validateParamtersFile.apply(null, [test.args[1]]);
 
           return validateTemplate.apply(null, test.args)
           .then(function (result) {

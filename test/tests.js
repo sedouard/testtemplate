@@ -29,7 +29,7 @@ function validateUser (githubUserName) {
 
 // Vaidates that the expected file paths exist
 function ensureExists (templatePath) {
-  assert(fs.existsSync(templatePath), 'Expected ' + templatePath + ' to be in the correct place');
+  assert(fs.existsSync(templatePath), 'The file ' + templatePath + ' is missing.');
 }
 
 function validateMetadata(metadataPath) {

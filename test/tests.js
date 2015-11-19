@@ -206,7 +206,8 @@ function generateTests(modifiedPaths) {
     }
     var templatePath = path.join(dirName, 'azuredeploy.json'),
         paramsPath = path.join(dirName, 'azuredeploy.parameters.json'),
-        metadataPath = path.join(dirName, 'metadata.json');
+        metadataPath = path.join(dirName, 'metadata.json'),
+        readmePath = path.join(dirName, 'README.md');
 
     // if we are only validating modified templates
     // only add test if this directory template has been modified
@@ -215,7 +216,7 @@ function generateTests(modifiedPaths) {
     }
 
     tests.push({
-      args: [templatePath, paramsPath, metadataPath],
+      args: [templatePath, paramsPath, metadataPath, readmePath],
       expected: true
     });
   });

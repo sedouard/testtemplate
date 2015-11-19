@@ -37,7 +37,7 @@
             "type": "string",
             "defaultValue": "Dynamic",
             "metadata": {
-                "description": "VM Name Prefix for the Virtual Machine."
+                "description": ""
             }
         },
         "publicIPAddressType": {

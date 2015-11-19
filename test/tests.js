@@ -278,9 +278,16 @@ describe('Template', function() {
 
   if (process.env.VALIDATE_MODIFIED_ONLY) {
     var repo = git.open('./');
+    var count = 0;
     // we automatically reset to the beginning of the commit range
     // so this includes all file paths that have changed for the CI run
     modifiedPaths = repo.getStatus();
+    console.log(modifiedPaths);
+    for (var i in modifiedPaths) {
+      count += 1;
+    }
+
+    assert(count !== 0, 'No changes were detected in your commit. Verify you added files and try again.');
   }
 
   testGroups = groupTests(modifiedPaths);

@@ -9,6 +9,7 @@
             "value": "####"
         },
         "adminUsername": {
+            "value": "somevalue"
         },
         "adminPassword": {
             "value": "rdPa$$w0rd"

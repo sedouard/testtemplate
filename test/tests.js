@@ -22,6 +22,11 @@ function safeParse (fileName, jsonStringData) {
   return object;
 }
 
+// Uses process.env.TRAVIS_PULL_REQUEST to find PR user name
+function validateUser (githubUserName) {
+
+}
+
 // Vaidates that the expected file paths exist
 function ensureExists (templatePath) {
   assert(fs.existsSync(templatePath), 'Expected ' + templatePath + ' to be in the correct place');
@@ -54,7 +59,10 @@ function validateMetadata(metadataPath) {
   assert(!/<[a-z][\s\S]*>/i.test(metadata.description), metadataPath + ' - Contains possible HTML elements which are not allowed');
   // validate date
   var date = new Date(metadata.dateUpdated);
+  var currentTime = new Date(Date.now());
   assert(!isNaN(date.getTime()), metadataPath + ' - dateUpdated field should be a valid date in the format YYYY-MM-DD');
+  // validate date is not in future
+  assert(date < currentTime, metadataPath + ' - dateUpdated field should not be in the future');
 }
 
 // azure cli apparently does not check for this

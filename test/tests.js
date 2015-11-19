@@ -36,9 +36,9 @@ function validateMetadata(metadataPath) {
   var result = skeemas.validate(metadata,
   {
     properties: {
-      itemDisplayName: { type: 'string', required: true, minLength: 10 },
-      description: { type: 'string', required: true, minLength: 10},
-      summary: { type: 'string', required: true, minLength: 10},
+      itemDisplayName: { type: 'string', required: true, minLength: 10 , maxLength: 60},
+      description: { type: 'string', required: true, minLength: 10, maxLength: 1000},
+      summary: { type: 'string', required: true, minLength: 10, maxLength: 200},
       githubUserName:  { type: 'string', required: true, minLength: 2},
       dateUpdated:  { type: 'string', required: true, minLength: 10}
     },
@@ -50,6 +50,8 @@ function validateMetadata(metadataPath) {
   });
   assert(result.valid, messages);
 
+  // validate description has no html
+  assert(!/<[a-z][\s\S]*>/i.test(metadata.description), metadataPath + ' - Contains possible HTML elements which are not allowed');
   // validate date
   var date = new Date(metadata.dateUpdated);
   assert(!isNaN(date.getTime()), metadataPath + ' - dateUpdated field should be a valid date in the format YYYY-MM-DD');
@@ -67,7 +69,6 @@ function validateTemplateParameters(templatePath, templateObject) {
         templatePath + ' - Template object .paramters.' + k + '.description is missing');
     }
   }
-
 }
 
 function prepTemplate(templatePath, parametersPath) {

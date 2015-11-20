@@ -44,7 +44,7 @@ function validateMetadata(metadataPath) {
       itemDisplayName: { type: 'string', required: true, minLength: 10 , maxLength: 60},
       description: { type: 'string', required: true, minLength: 10, maxLength: 1000},
       summary: { type: 'string', required: true, minLength: 10, maxLength: 200},
-      githubUserName:  { type: 'string', required: true, minLength: 2},
+      githubUsername:  { type: 'string', required: true, minLength: 2},
       dateUpdated:  { type: 'string', required: true, minLength: 10}
     },
     additionalProperties: false

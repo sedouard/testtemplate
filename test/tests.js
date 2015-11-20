@@ -72,9 +72,9 @@ function validateTemplateParameters(templatePath, templateObject) {
   for (var k in templateObject.parameters) {
     if(typeof k === 'string') {
       assert.ok(templateObject.parameters[k].metadata, 
-        templatePath + ' -  Parameter \"' + k + '\" is missing its metadata field');
+        templatePath + ' -  Parameter \"' + k + '\" is missing its \"metadata\" property');
       assert.ok(templateObject.parameters[k].metadata.description, 
-        templatePath + ' - Parameter \"' + k + '\" is missing its description field');
+        templatePath + ' - Parameter \"' + k + '\" is missing its \"description\" field within the metadata property');
     }
   }
 }

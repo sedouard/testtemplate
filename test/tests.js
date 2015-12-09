@@ -77,7 +77,10 @@ function validateTemplateParameters(templatePath, templateObject) {
         templatePath + ' - Parameter \"' + k + '\" is missing its \"description\" field within the metadata property');
     }
   }
+
+  validateGithubLinks(templateObject);
 }
+
 
 function validateParamtersFile(parametersPath) {
 
@@ -93,6 +96,32 @@ function validateParamtersFile(parametersPath) {
         parametersPath + ' -  Parameter \"' + k + '\" is missing its value field');
     }
   }
+}
+
+// validates that github cdn links in template point to upstream
+function validateGithubLinks(template) {
+
+  if (!process.env.TRAVIS_REPO_SLUG) {
+    debug('not validating github links');
+    return;
+  }
+  debug('validating github links...');
+  var templateString = JSON.stringify(template);
+
+  var regexp = new RegExp('"https:\/\/raw.githubusercontent\.com\/.+?"');
+  var matches = templateString.match(regexp);
+
+  matches.forEach(function(match) {
+    debug('found match: ' + match);
+    var target = match.replace('"', '');
+    target = target.replace('https://raw.githubusercontent.com/', '');
+    repoParts = target.split('/');
+    // repoParts[0] => username, repoParets[1] => reponame
+    targetRepoSlug = path.join(repoParts[0], repoParts[1]);
+
+    assert.equal(match, match.replace(targetRepoSlug, process.env.TRAVIS_REPO_SLUG), 
+      'Detected Github CDN link outside of upstream repo: ' + process.env.TRAVIS_REPO_SLUG);
+  });
 }
 
 function prepTemplate(templatePath, parametersPath) {
@@ -148,6 +177,10 @@ function timedOutput(onOff, intervalObject) {
 // Calls a remote url which will deploy the template
 function deployTemplate(templatePath, parametersPath) {
   var requestBody = prepTemplate(templatePath, parametersPath);
+
+  if (process.env.TRAVIS_PULL_REQUEST) {
+    requestBody.pull_request = process.env.TRAVIS_PULL_REQUEST;
+  }
 
   // validate the template paramters, particularly the description field
   validateTemplateParameters(templatePath, requestBody.template);

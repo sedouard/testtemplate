@@ -3,6 +3,8 @@ before_script:
   - echo $TRAVIS_COMMIT_RANGE
   - echo anothertest22
   - git reset "$(echo $TRAVIS_COMMIT_RANGE | awk '{split($0,a,/\.\.\./); print a[1]}')"
+  - echo $TRAVIS_BRANCH
+  - echo $TRAVIS_REPO_SLUG
   - npm install -g grunt-cli
   - npm install -g mocha
 node_js:

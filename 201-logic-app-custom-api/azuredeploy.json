@@ -5,7 +5,7 @@
         "tenantId": {
             "type": "string",
             "metadata": {
-                "description": "The tenant ID that you Azure subscription is in."
+                "description": "Thee tenant ID that you Azure subscription is in."
             }
         },
         "location": {

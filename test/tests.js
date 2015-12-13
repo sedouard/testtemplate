@@ -1,57 +1,93 @@
+/*global describe, it*/
 var assert = require('assert'),
-    fs = require('fs'),
-    path = require('path'),
-    RSVP = require('rsvp'),
-    unirest = require('unirest'),
-    skeemas = require('skeemas'),
-    git = require('git-utils'),
-    debug = require('debug')('validator'),
-    parallel = require('mocha.parallel');
+  fs = require('fs'),
+  execSync = require('child_process').execSync,
+  path = require('path'),
+  RSVP = require('rsvp'),
+  unirest = require('unirest'),
+  skeemas = require('skeemas'),
+  debug = require('debug')('validator'),
+  parallel = require('mocha.parallel');
 
+function getModifiedPaths() {
+  assert.ok(process.env.TRAVIS_COMMIT_RANGE, 'VALIDATE_MODIFIED_ONLY requires TRAVIS_COMMIT_RANGE to be set to [START_COMMIT_HASH]...[END_COMMIT_HASH]');
+  var rangeStart = process.env.TRAVIS_COMMIT_RANGE.split('...')[0];
+  var rangeEnd = process.env.TRAVIS_COMMIT_RANGE.split('...')[1];
+  var stdout = execSync('git diff --name-only ' + rangeStart + ' ' + rangeEnd, {
+    encoding: 'utf8'
+  });
+  var lines = stdout.split('\n');
+  var result = {};
+
+  for (var i = 0; i < lines.length; i += 1) {
+    result[lines[i]] = lines[i];
+  }
+
+  return result;
+}
 // Tries to parse a json string and asserts with a friendly
 // message if something is wrong
-function safeParse (fileName, jsonStringData) {
+function tryParse(fileName, jsonStringData) {
   var object;
 
   try {
     object = JSON.parse(jsonStringData);
   } catch (e) {
-    assert(false, fileName + ' is not valid JSON. Copy and paste the contents to https://jsonformatter.curiousconcept.com/ and correct the syntax errors. Error: ' + e.toString()) ;
+    assert(false, fileName + ' is not valid JSON. Copy and paste the contents to https://jsonformatter.curiousconcept.com/ and correct the syntax errors. Error: ' + e.toString());
   }
 
   return object;
 }
 
-// Uses process.env.TRAVIS_PULL_REQUEST to find PR user name
-function validateUser (githubUserName) {
-
-}
-
 // Vaidates that the expected file paths exist
-function ensureExists (templatePath) {
+function ensureExists(templatePath) {
   assert(fs.existsSync(templatePath), 'The file ' + templatePath + ' is missing.');
 }
 
 function validateMetadata(metadataPath) {
-  var metadataData = fs.readFileSync(metadataPath, {encoding: 'utf-8'});
+  var metadataData = fs.readFileSync(metadataPath, {
+    encoding: 'utf-8'
+  });
   metadataData = metadataData.trim();
 
-  var metadata = safeParse(metadataPath, metadataData);
+  var metadata = tryParse(metadataPath, metadataData);
 
-  var result = skeemas.validate(metadata,
-  {
+  var result = skeemas.validate(metadata, {
     properties: {
-      itemDisplayName: { type: 'string', required: true, minLength: 10 , maxLength: 60},
-      description: { type: 'string', required: true, minLength: 10, maxLength: 1000},
-      summary: { type: 'string', required: true, minLength: 10, maxLength: 200},
-      githubUsername:  { type: 'string', required: true, minLength: 2},
-      dateUpdated:  { type: 'string', required: true, minLength: 10}
+      itemDisplayName: {
+        type: 'string',
+        required: true,
+        minLength: 10,
+        maxLength: 60
+      },
+      description: {
+        type: 'string',
+        required: true,
+        minLength: 10,
+        maxLength: 1000
+      },
+      summary: {
+        type: 'string',
+        required: true,
+        minLength: 10,
+        maxLength: 200
+      },
+      githubUsername: {
+        type: 'string',
+        required: true,
+        minLength: 2
+      },
+      dateUpdated: {
+        type: 'string',
+        required: true,
+        minLength: 10
+      }
     },
     additionalProperties: false
   });
   var messages = '';
-  result.errors.forEach(function (error){
-    messages += ( metadataPath + ' - ' + error.context + ':' + error.message + '\n');
+  result.errors.forEach(function (error) {
+    messages += (metadataPath + ' - ' + error.context + ':' + error.message + '\n');
   });
   assert(result.valid, messages);
 
@@ -67,98 +103,71 @@ function validateMetadata(metadataPath) {
 
 // azure cli apparently does not check for this
 function validateTemplateParameters(templatePath, templateObject) {
-
   assert.ok(templateObject.parameters, 'Expected a \'.parameters\' field within the deployment template');
   for (var k in templateObject.parameters) {
-    if(typeof k === 'string') {
-      assert.ok(templateObject.parameters[k].metadata, 
+    if (typeof k === 'string') {
+      assert.ok(templateObject.parameters[k].metadata,
         templatePath + ' -  Parameter \"' + k + '\" is missing its \"metadata\" property');
-      assert.ok(templateObject.parameters[k].metadata.description, 
+      assert.ok(templateObject.parameters[k].metadata.description,
         templatePath + ' - Parameter \"' + k + '\" is missing its \"description\" field within the metadata property');
     }
   }
-
-  validateGithubLinks(templateObject);
 }
 
-
 function validateParamtersFile(parametersPath) {
+  var parametersData = fs.readFileSync(parametersPath, {
+    encoding: 'utf-8'
+  });
+  var metadataData = parametersData.trim();
 
-  var parametersData = fs.readFileSync(parametersPath, {encoding: 'utf-8'});
-  metadataData = parametersData.trim();
-
-  var parametersObject = safeParse(parametersPath, metadataData);
+  var parametersObject = tryParse(parametersPath, metadataData);
 
   assert.ok(parametersObject.parameters, parametersPath + ' - Expected a \'.parameters\' field within the parameters file');
   for (var k in parametersObject.parameters) {
-    if(typeof k === 'string') {
-      assert.ok(parametersObject.parameters[k].value, 
+    if (typeof k === 'string') {
+      assert.ok(parametersObject.parameters[k].value,
         parametersPath + ' -  Parameter \"' + k + '\" is missing its value field');
     }
   }
 }
 
-// validates that github cdn links in template point to upstream
-function validateGithubLinks(template) {
-
-  if (!process.env.TRAVIS_REPO_SLUG) {
-    debug('not validating github links');
-    return;
-  }
-  debug('validating github links...');
-  var templateString = JSON.stringify(template);
-
-  var regexp = new RegExp('"https:\/\/raw.githubusercontent\.com\/.+?"');
-  var matches = templateString.match(regexp);
-
-  matches.forEach(function(match) {
-    debug('found match: ' + match);
-    var target = match.replace('"', '');
-    target = target.replace('https://raw.githubusercontent.com/', '');
-    repoParts = target.split('/');
-    // repoParts[0] => username, repoParets[1] => reponame
-    targetRepoSlug = path.join(repoParts[0], repoParts[1]);
-
-    assert.equal(match, match.replace(targetRepoSlug, process.env.TRAVIS_REPO_SLUG), 
-      'Detected Github CDN link outside of upstream repo: ' + process.env.TRAVIS_REPO_SLUG);
-  });
-}
-
 function prepTemplate(templatePath, parametersPath) {
-  var templateData = fs.readFileSync(templatePath, {encoding: 'utf-8'}),
-      parameterData = fs.readFileSync(parametersPath, {encoding: 'utf-8'});
+  var templateData = fs.readFileSync(templatePath, {
+      encoding: 'utf-8'
+    }),
+    parameterData = fs.readFileSync(parametersPath, {
+      encoding: 'utf-8'
+    });
 
   templateData = templateData.trim();
   parameterData = parameterData.trim();
 
   var requestBody = {
-    template: safeParse(templatePath, templateData),
-    parameters: safeParse(templatePath, parameterData)
-  }
+    template: tryParse(templatePath, templateData),
+    parameters: tryParse(templatePath, parameterData)
+  };
 
   return requestBody;
 }
 
 // Calls a remote url which will validate the template and parameters
 function validateTemplate(templatePath, parametersPath) {
-  
   var requestBody = prepTemplate(templatePath, parametersPath);
 
   // validate the template paramters, particularly the description field
   validateTemplateParameters(templatePath, requestBody.template);
 
-  return new RSVP.Promise(function(resolve, reject) {
+  return new RSVP.Promise(function (resolve, reject) {
     unirest.post(process.env.VALIDATION_HOST + '/validate')
-    .type('json')
-    .send(JSON.stringify(requestBody))
-    .end(function (response) {
+      .type('json')
+      .send(JSON.stringify(requestBody))
+      .end(function (response) {
+        if (response.status !== 200) {
+          return reject(response.body);
+        }
 
-      if (response.status !== 200) {
-        return reject(response.body);
-      }
-
-      return resolve(response.body);
-    });
+        return resolve(response.body);
+      });
   });
 }
 
@@ -168,7 +177,7 @@ function timedOutput(onOff, intervalObject) {
   if (onOff) {
     return setInterval(function () {
       console.log('...');
-    }, 30 * 1000)
+    }, 30 * 1000);
   } else {
     clearTimeout(intervalObject);
   }
@@ -178,7 +187,8 @@ function timedOutput(onOff, intervalObject) {
 function deployTemplate(templatePath, parametersPath) {
   var requestBody = prepTemplate(templatePath, parametersPath);
 
-  if (process.env.TRAVIS_PULL_REQUEST) {
+  if (process.env.TRAVIS_PULL_REQUEST &&
+    process.env.TRAVIS_PULL_REQUEST !== 'false') {
     requestBody.pull_request = process.env.TRAVIS_PULL_REQUEST;
   }
 
@@ -188,36 +198,33 @@ function deployTemplate(templatePath, parametersPath) {
   var intervalObj = timedOutput(true);
   debug('making deploy request');
 
-  return new RSVP.Promise(function(resolve, reject) {
+  return new RSVP.Promise(function (resolve, reject) {
     unirest.post(process.env.VALIDATION_HOST + '/deploy')
-    .type('json')
-    .timeout(3600 * 1000) // template deploy can take some time
-    .send(JSON.stringify(requestBody))
-    .end(function (response) {
-      timedOutput(false, intervalObj);
-      debug(response.status);
-      debug(response.body);
+      .type('json')
+      .timeout(3600 * 1000) // template deploy can take some time
+      .send(JSON.stringify(requestBody))
+      .end(function (response) {
+        timedOutput(false, intervalObj);
+        debug(response.status);
+        debug(response.body);
 
-      // 202 is the long poll response
-      // anything else is really bad
-      if (response.status !== 202) {
-        return reject(response.body);
-      }
-      
-      if(response.body.result === 'Deployment Successful') {
-        return resolve(response.body);
-      }
-      else {
-        return reject(response.body);
-      }
-      
-    });
+        // 202 is the long poll response
+        // anything else is really bad
+        if (response.status !== 202) {
+          return reject(response.body);
+        }
+
+        if (response.body.result === 'Deployment Successful') {
+          return resolve(response.body);
+        } else {
+          return reject(response.body);
+        }
+      });
   });
 }
 
-
 function getDirectories(srcpath) {
-  return fs.readdirSync(srcpath).filter(function(file) {
+  return fs.readdirSync(srcpath).filter(function (file) {
     return fs.statSync(path.join(srcpath, file)).isDirectory();
   });
 }
@@ -242,21 +249,19 @@ function generateTests(modifiedPaths) {
   debug('modified dirs:');
   debug(modifiedDirs);
   directories.forEach(function (dirName) {
-
-
     // exceptions
     if (dirName === '.git' ||
-        dirName === 'node_modules') {
+      dirName === 'node_modules') {
       return;
     }
 
     if (fs.existsSync(path.join(dirName, '.ci_skip'))) {
-      return;
+      return; 
     }
     var templatePath = path.join(dirName, 'azuredeploy.json'),
-        paramsPath = path.join(dirName, 'azuredeploy.parameters.json'),
-        metadataPath = path.join(dirName, 'metadata.json'),
-        readmePath = path.join(dirName, 'README.md');
+      paramsPath = path.join(dirName, 'azuredeploy.parameters.json'),
+      metadataPath = path.join(dirName, 'metadata.json'),
+      readmePath = path.join(dirName, 'README.md');
 
     // if we are only validating modified templates
     // only add test if this directory template has been modified
@@ -278,16 +283,15 @@ function generateTests(modifiedPaths) {
 
 // Group tests in chunks defined by an environment variable
 // or by the default value
-function groupTests (modifiedPaths) {
+function groupTests(modifiedPaths) {
   // we probably shouldn't deploy a ton of templates at once...
   var tests = generateTests(modifiedPaths),
-      testGroups = [],
-      groupIndex = 0,
-      counter = 0,
-      groupSize = process.env.PARALLEL_DEPLOYMENT_NUMBER || 2;
-  
-  tests.forEach(function(test) {
+    testGroups = [],
+    groupIndex = 0,
+    counter = 0,
+    groupSize = process.env.PARALLEL_DEPLOYMENT_NUMBER || 2;
 
+  tests.forEach(function (test) {
     if (!testGroups[groupIndex]) {
       testGroups[groupIndex] = [];
     }
@@ -303,60 +307,59 @@ function groupTests (modifiedPaths) {
   return testGroups;
 }
 
-describe('Template', function() {
-
+describe('Template', function () {
   this.timeout(3600 * 1000);
 
   var modifiedPaths;
 
   if (process.env.VALIDATE_MODIFIED_ONLY) {
-    var repo = git.open('./');
     var count = 0;
     // we automatically reset to the beginning of the commit range
     // so this includes all file paths that have changed for the CI run
-    modifiedPaths = repo.getStatus();
-    console.log(modifiedPaths);
+    modifiedPaths = getModifiedPaths();
+    debug(modifiedPaths);
     for (var i in modifiedPaths) {
-      count += 1;
+      if (typeof i === 'string') {
+        count += 1;
+      }
     }
 
     assert(count !== 0, 'No changes were detected in your commit. Verify you added files and try again.');
   }
 
-  testGroups = groupTests(modifiedPaths);
+  var testGroups = groupTests(modifiedPaths);
 
   testGroups.forEach(function (tests) {
     parallel('Running ' + tests.length + ' Parallel Template Validation(s)...', function () {
-      tests.forEach(function(test) {
-        it(test.args[0] + ' & ' + test.args[1] + ' should be valid', function() {
+      tests.forEach(function (test) {
+        it(test.args[0] + ' & ' + test.args[1] + ' should be valid', function () {
           // validate template files are in correct place
           test.args.forEach(function (path) {
-            var res = ensureExists.apply(null, [path]);
+            ensureExists.apply(null, [path]);
           });
 
           validateMetadata.apply(null, [test.args[2]]);
           validateParamtersFile.apply(null, [test.args[1]]);
 
           return validateTemplate.apply(null, test.args)
-          .then(function (result) {
-            debug('template validation sucessful, deploying template...');
-            return deployTemplate.apply(null, test.args);
-          })
-          .then(function () {
-            // success
-            return assert(true);
-          })
-          .catch(function (err) {
-            var errorString = 'Template Validiation Failed. Try deploying your template with the commands:\n';
-            errorString += 'azure group template validate --resource-group (your_group_name) ';
-            errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1] + '\n';
-            errorString += 'azure group deployment create --resource-group (your_group_name) ';
-            errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1];
-            assert(false, errorString + ' \n\nServer Error:' + JSON.stringify(err));
-          });
+            .then(function () {
+              debug('template validation sucessful, deploying template...');
+              return deployTemplate.apply(null, test.args);
+            })
+            .then(function () {
+              // success
+              return assert(true);
+            })
+            .catch(function (err) {
+              var errorString = 'Template Validiation Failed. Try deploying your template with the commands:\n';
+              errorString += 'azure group template validate --resource-group (your_group_name) ';
+              errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1] + '\n';
+              errorString += 'azure group deployment create --resource-group (your_group_name) ';
+              errorString += ' --template-file ' + test.args[0] + ' --parameters-file ' + test.args[1];
+              assert(false, errorString + ' \n\nServer Error:' + JSON.stringify(err));
+            });
         });
       });
     });
   });
 });
-
